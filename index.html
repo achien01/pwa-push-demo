@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PWA 推播示範</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1a1a2e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="推播示範" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f1a;
+      color: #e8e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .icon {
+      font-size: 56px;
+      display: block;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #fff;
+    }
+
+    h1 span {
+      color: #7c6af5;
+    }
+
+    .subtitle {
+      margin-top: 6px;
+      font-size: 14px;
+      color: #888;
+    }
+
+    .card {
+      background: #1a1a2e;
+      border: 1px solid #2a2a42;
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 420px;
+      margin-bottom: 16px;
+    }
+
+    .card h2 {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #7c6af5;
+      margin-bottom: 16px;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid #2a2a42;
+      font-size: 14px;
+      color: #ccc;
+    }
+
+    .status-row:last-child { border-bottom: none; }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #444;
+      flex-shrink: 0;
+    }
+
+    .dot.green { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+    .dot.yellow { background: #fbbf24; box-shadow: 0 0 6px #fbbf24; }
+    .dot.red { background: #f87171; box-shadow: 0 0 6px #f87171; }
+
+    .status-label { flex: 1; }
+    .status-value { font-size: 12px; color: #888; }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: none;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 8px;
+    }
+
+    .btn-primary {
+      background: #7c6af5;
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: #6a58e0; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { background: #3a3a5a; color: #666; cursor: not-allowed; transform: none; }
+
+    .btn-secondary {
+      background: transparent;
+      color: #7c6af5;
+      border: 1px solid #7c6af5;
+    }
+
+    .btn-secondary:hover { background: #7c6af520; }
+    .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .log {
+      background: #0a0a14;
+      border: 1px solid #2a2a42;
+      border-radius: 12px;
+      padding: 16px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px;
+      color: #888;
+      min-height: 100px;
+      max-height: 200px;
+      overflow-y: auto;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .log-entry {
+      padding: 3px 0;
+      border-bottom: 1px solid #1a1a2e;
+    }
+
+    .log-entry.success { color: #4ade80; }
+    .log-entry.error { color: #f87171; }
+    .log-entry.info { color: #7c6af5; }
+
+    .ios-note {
+      background: #1a1208;
+      border: 1px solid #4a3200;
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 13px;
+      color: #f0c060;
+      width: 100%;
+      max-width: 420px;
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
+
+    .ios-note strong { display: block; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="icon">🔔</span>
+  <h1>PWA <span>推播</span>示範</h1>
+  <p class="subtitle">Web Push Notification Demo</p>
+</header>
+
+<div class="ios-note" id="iosNote" style="display:none">
+  <strong>📱 iOS 注意事項</strong>
+  需要 iOS 16.4 以上，且必須先點右下角「分享」→「加入主畫面」，再從主畫面開啟才能啟用推播。
+</div>
+
+<div class="card">
+  <h2>系統狀態</h2>
+  <div class="status-row">
+    <div class="dot" id="dotSW"></div>
+    <span class="status-label">Service Worker</span>
+    <span class="status-value" id="valSW">檢查中…</span>
+  </div>
+  <div class="status-row">
+    <div class="dot" id="dotPush"></div>
+    <span class="status-label">推播 API</span>
+    <span class="status-value" id="valPush">檢查中…</span>
+  </div>
+  <div class="status-row">
+    <div class="dot" id="dotPerm"></div>
+    <span class="status-label">通知權限</span>
+    <span class="status-value" id="valPerm">檢查中…</span>
+  </div>
+  <div class="status-row">
+    <div class="dot" id="dotStandalone"></div>
+    <span class="status-label">主畫面模式</span>
+    <span class="status-value" id="valStandalone">檢查中…</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>操作</h2>
+  <button class="btn-primary" id="btnSubscribe" disabled>訂閱推播通知</button>
+  <button class="btn-secondary" id="btnTest" disabled>傳送本機測試通知</button>
+  <button class="btn-secondary" id="btnUnsubscribe" disabled>取消訂閱</button>
+</div>
+
+<div class="log" id="log">
+  <div class="log-entry info">▶ 初始化中…</div>
+</div>
+
+<script>
+  // ─── VAPID 公鑰（實際部署請換成自己產生的）─────────────────────────
+  // 用 web-push 產生：npx web-push generate-vapid-keys
+  const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
+
+  // ─── 工具函式 ─────────────────────────────────────────────────────────
+  function log(msg, type = '') {
+    const el = document.getElementById('log');
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.textContent = `${new Date().toLocaleTimeString()} ${msg}`;
+    el.appendChild(entry);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function setDot(id, color) {
+    document.getElementById(id).className = `dot ${color}`;
+  }
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+  }
+
+  // ─── 初始化 ───────────────────────────────────────────────────────────
+  let swRegistration = null;
+  let subscription = null;
+
+  async function init() {
+    // iOS 偵測
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) document.getElementById('iosNote').style.display = 'block';
+
+    // 主畫面模式
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;
+    setDot('dotStandalone', isStandalone ? 'green' : 'yellow');
+    document.getElementById('valStandalone').textContent = isStandalone ? '是（主畫面）' : '否（瀏覽器）';
+
+    // Service Worker
+    if (!('serviceWorker' in navigator)) {
+      setDot('dotSW', 'red');
+      document.getElementById('valSW').textContent = '不支援';
+      log('✗ 此瀏覽器不支援 Service Worker', 'error');
+      return;
+    }
+
+    try {
+      swRegistration = await navigator.serviceWorker.register('sw.js');
+      setDot('dotSW', 'green');
+      document.getElementById('valSW').textContent = '已註冊';
+      log('✓ Service Worker 已註冊', 'success');
+    } catch (e) {
+      setDot('dotSW', 'red');
+      document.getElementById('valSW').textContent = '失敗';
+      log(`✗ Service Worker 註冊失敗: ${e.message}`, 'error');
+      return;
+    }
+
+    // Push API
+    if (!('PushManager' in window)) {
+      setDot('dotPush', 'red');
+      document.getElementById('valPush').textContent = '不支援';
+      log('✗ 此瀏覽器不支援 Push API', 'error');
+      if (isIOS) log('ℹ iOS 需要 16.4+，且須從主畫面開啟', 'info');
+      return;
+    }
+
+    setDot('dotPush', 'green');
+    document.getElementById('valPush').textContent = '支援';
+
+    // 通知權限
+    const perm = Notification.permission;
+    updatePermUI(perm);
+
+    // 檢查現有訂閱
+    subscription = await swRegistration.pushManager.getSubscription();
+    if (subscription) {
+      log('ℹ 已有推播訂閱', 'info');
+      document.getElementById('btnSubscribe').disabled = true;
+      document.getElementById('btnTest').disabled = false;
+      document.getElementById('btnUnsubscribe').disabled = false;
+    } else {
+      document.getElementById('btnSubscribe').disabled = false;
+    }
+  }
+
+  function updatePermUI(perm) {
+    const map = {
+      granted:  { color: 'green', text: '已允許' },
+      denied:   { color: 'red',   text: '已拒絕' },
+      default:  { color: 'yellow',text: '未設定' },
+    };
+    const s = map[perm] || map.default;
+    setDot('dotPerm', s.color);
+    document.getElementById('valPerm').textContent = s.text;
+  }
+
+  // ─── 訂閱推播 ─────────────────────────────────────────────────────────
+  document.getElementById('btnSubscribe').onclick = async () => {
+    log('▶ 請求通知權限…');
+    const perm = await Notification.requestPermission();
+    updatePermUI(perm);
+
+    if (perm !== 'granted') {
+      log('✗ 使用者拒絕通知權限', 'error');
+      return;
+    }
+
+    log('▶ 訂閱推播中…');
+    try {
+      subscription = await swRegistration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+
+      log('✓ 訂閱成功！', 'success');
+      log(`ℹ endpoint: ${subscription.endpoint.slice(0, 50)}…`, 'info');
+      log('ℹ 實際部署時，把 subscription 物件送到你的後端儲存', 'info');
+
+      // 顯示訂閱物件（示範用）
+      console.log('Subscription:', JSON.stringify(subscription));
+
+      document.getElementById('btnSubscribe').disabled = true;
+      document.getElementById('btnTest').disabled = false;
+      document.getElementById('btnUnsubscribe').disabled = false;
+    } catch (e) {
+      log(`✗ 訂閱失敗: ${e.message}`, 'error');
+    }
+  };
+
+  // ─── 本機測試通知（不需後端）─────────────────────────────────────────
+  document.getElementById('btnTest').onclick = async () => {
+    if (Notification.permission !== 'granted') {
+      log('✗ 沒有通知權限', 'error');
+      return;
+    }
+
+    log('▶ 發送本機測試通知…');
+
+    // 用 Service Worker 顯示通知（支援 action 按鈕）
+    await swRegistration.showNotification('🔔 測試通知', {
+      body: '這是一則來自 PWA 的推播通知！\n時間：' + new Date().toLocaleTimeString(),
+      icon: 'https://via.placeholder.com/192/7c6af5/ffffff?text=PWA',
+      badge: 'https://via.placeholder.com/72/7c6af5/ffffff?text=N',
+      tag: 'test',
+      requireInteraction: false,
+      actions: [
+        { action: 'open',    title: '開啟 App' },
+        { action: 'dismiss', title: '關閉' },
+      ],
+      data: { url: '/' }
+    });
+
+    log('✓ 通知已送出，請查看通知欄', 'success');
+  };
+
+  // ─── 取消訂閱 ─────────────────────────────────────────────────────────
+  document.getElementById('btnUnsubscribe').onclick = async () => {
+    if (!subscription) return;
+    await subscription.unsubscribe();
+    subscription = null;
+    log('✓ 已取消訂閱', 'success');
+    document.getElementById('btnSubscribe').disabled = false;
+    document.getElementById('btnTest').disabled = true;
+    document.getElementById('btnUnsubscribe').disabled = true;
+  };
+
+  init();
+</script>
+</body>
+</html>
