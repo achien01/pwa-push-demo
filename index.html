@@ -266,6 +266,7 @@
 
     try {
       swRegistration = await navigator.serviceWorker.register('sw.js');
+      await navigator.serviceWorker.ready;
       setDot('dotSW', 'green');
       document.getElementById('valSW').textContent = '已註冊';
       log('✓ Service Worker 已註冊', 'success');
