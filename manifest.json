@@ -2,7 +2,7 @@
   "name": "PWA 推播示範",
   "short_name": "推播示範",
   "description": "Web Push Notification Demo",
-  "start_url": "/",
+  "start_url": "/pwa-push-demo/",
   "display": "standalone",
   "background_color": "#0f0f1a",
   "theme_color": "#1a1a2e",
